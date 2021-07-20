@@ -1,0 +1,195 @@
+---
+title: "Lista 2"
+author: "Marcelo Saito"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+        html_document:
+                highlight: textmate
+                theme: journal
+                number_sections: no
+                toc: yes
+                toc_float: yes
+                collapsed: yes
+                smooth_scroll: yes
+---
+
+# A partir da PNAD COVID-19 do mês de maio de 2020:
+
+# Indicando diretório
+
+```{r}
+
+getwd()
+
+setwd("G:\\Meu Drive\\R\\Version control\\metodos-quantitativos2\\Lista 2")
+
+```
+
+## pacotes
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(srvyr)
+library(readr)
+library(dummies)
+
+```
+## Importação da base
+
+```{r}
+pnad_maio <- readr::read_csv("PNAD_COVID_052020.csv", col_types = cols(.default = "d")) %>% 
+        srvyr::as_survey_design(ids = UPA, strata = Estrato, weights = V1032, nest = TRUE)
+
+options(scipen = 999) # desativa notação científica
+```
+# Utilizando a PNAD COVID de maio de 2020, responda os seguintes itens:
+
+## a) Crie uma variável dummy se a pessoa trabalha remotamente (home office). código adaptado de [Regis A. Ely](http://regisely.com/blog/mercado-de-trabalho-covid/)
+
+```{r}
+
+pnad_maio_variaveis <- pnad_maio %>% 
+        mutate(one = 1,
+       Sexo = ifelse(A003 == 1, "Homem", "Mulher"), 
+       Idade = factor(case_when(
+               A002 %in% 15:24 ~ "15-24",
+               A002 %in% 25:34 ~ "25-34", 
+               A002 %in% 35:49 ~ "35-49", 
+               A002 %in% 50:64 ~ "50-64", 
+               A002 > 64 ~ "65+"),
+               levels = c("15-24",
+                      "25-34",
+                      "35-49",
+                      "50-64",
+                      "65+")),
+       Cor = case_when(
+               A004 == 1 ~ "Branca", 
+               A004 == 2 ~ "Preta", 
+               A004 == 4 ~ "Parda"),
+       Escolaridade = factor(case_when( 
+               A005 %in% 1:2 ~ "Sem Instrução ou Fundamental Incompleto", 
+               A005 %in% 3:4 ~ "Fundamental completo ou Médio Incompleto", 
+               A005 %in% 5:6 ~ "Médio completo ou Superior Incompleto", 
+               A005 == 7 ~ "Superior completo", 
+               A005 == 8 ~ "Pós-graduação"), 
+               levels = c( "Sem Instrução ou Fundamental Incompleto",
+                           "Fundamental completo ou Médio Incompleto", 
+                           "Médio completo ou Superior Incompleto",
+                           "Superior completo",
+                           "Pós-graduação")), 
+       Tipo_emprego = factor(case_when(
+               C007 == 1 ~ "Trabalhador doméstico (empregado doméstico, cuidados, babá)",
+               C007 == 2 ~ "Militar",
+               C007 == 3 ~ "Policial ou Bombeiro",
+               C007 == 4 ~ "Setor privado",
+               C007 == 5 ~ "Setor público",
+               C007 == 6 ~ "Empregador",
+               C007 == 7 ~ "Autônomo (Conta própria)"),
+               levels = c( "Trabalhador doméstico (empregado doméstico, cuidados, babá)",
+                           "Militar", 
+                           "Policial ou Bombeiro",
+                           "Setor privado",
+                           "Setor público",
+                           "Empregador",
+                           "Autônomo (Conta própria)")), 
+       Faixa_salario = factor(case_when(
+               C01012 <= 1044 ~ "Menos de um salário mínimo",
+               C01012 %in% c(1045:2090) ~ "Entre 1 e 2",
+               C01012 %in% c(2091:3135) ~ "Entre 2 e 3",
+               C01012 %in% c(3136:4180) ~ "Entre 3 e 4",
+               C01012 %in% c(4181:5225) ~ "Entre 4 e 5",
+               C01012 >= 5226 ~ "Mais de 5"),
+               levels = c("Menos de um salário mínimo",
+                          "Entre 1 e 2",
+                          "Entre 2 e 3",
+                          "Entre 3 e 4",
+                          "Entre 4 e 5",
+                          "Mais de 5")),
+       domicilio_situacao = factor(case_when(
+               F001 == 1 ~ "Próprio - já pago",
+               F001 == 2 ~ "Próprio - ainda pagando" ,                                  
+               F001 == 3 ~ "Alugado",
+               F001 %in% 4:6 ~ "Cedido (Por empregador, Familiar ou outro)"),
+               levels = c("Próprio - já pago",
+                          "Próprio - ainda pagando",
+                          "Alugado", 
+                          "Cedido (Por empregador, Familiar ou outro)")),
+       home_office = ifelse(C013 == 1, 1, 0),
+       auxilio_emergencial = ifelse(D0051 == 1, "Auxílio", "Sem auxílio"),
+)
+```
+
+## b) Apresente as estatísticas descritivas do trabalho remoto (valor médio e desvio padrão).
+
+```{r}
+
+
+```
+
+## c) Apresente as estatísticas do trabalho remoto segundo gênero, cor/raça e escolaridade. {.tabset}
+
+### Porcentagem
+
+```{r}
+home_porcentagem <- pnad_maio_variaveis %>%
+        group_by(Sexo, Cor, Escolaridade) %>%
+        filter(C007 != 9 & !is.na(C007)) %>%
+        summarise(
+                home_office = survey_total(C013 == 1, na.rm = TRUE),
+                ocupados_nafastado =  survey_total(C001 == 1, na.rm = TRUE)
+                ) %>%
+        mutate("Home Office (%)" = round((home_office / ocupados_nafastado) * 100), 4) %>%
+        ungroup() %>% 
+        select(Sexo, Cor, Escolaridade, "Home Office (%)") %>% 
+        drop_na() %>% 
+        distinct()
+
+home_porcentagem
+```
+
+
+### Frequência
+```{r}
+
+home_absolutos <- pnad_maio_variaveis %>% 
+        group_by(Sexo, Cor, Escolaridade) %>%
+        filter(C007 != 9 & !is.na(C007)) %>%
+        summarise(home_office = survey_total(C013 == 1, na.rm = TRUE)) %>%
+        mutate("Home Office" = round(home_office,4)) %>%
+        ungroup() %>% 
+        select(Sexo, Cor, Escolaridade, "Home Office") %>% 
+        drop_na()
+
+home_absolutos
+
+```
+
+
+## d) Construa um modelo de probabilidade linear para uma pessoa em idade ativa trabalhar remotamente e interprete os coeficientes estimados segundo as categorias do item c.   
+
+$$ trabrem = \beta_0 + \beta_1 esc + \beta_2 id + \beta_3 cor + \beta_4 sexo + \beta_5 reg + \mu $$
+
+onde:  
+\beta_0:      Intercepto
+\beta_1 esc:  Escolaridade  
+\beta_2 id:   Idade  
+\beta_3 cor:  Cor  
+\beta_4 sexo: Sexo  
+\beta_5 reg:  Região
+\mu:          Termo de erro
+
+
+
+```{r}
+#usar pairs.panels() e vif()
+
+dummies <- pnad_maio_variaveis %>% 
+        select(Escolaridade, Idade, Cor, Sexo) %>% 
+        dummy_cols(remove_first_dummy = TRUE)
+
+        
+
+```
+
