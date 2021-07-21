@@ -21,7 +21,7 @@ output:
 
 getwd()
 
-setwd("G:\\Meu Drive\\R\\Version control\\metodos-quantitativos2\\Lista 2")
+setwd("G:\\Meu Drive\\R\\Version control\\Metodos-quanti\\Lista 2")
 
 ```
 
@@ -33,8 +33,12 @@ library(ggplot2)
 library(scales)
 library(srvyr)
 library(readr)
-library(dummies)
-
+library(fastDummies)
+library(psych)
+library(car)
+library(MASS)
+library(DescTools)
+library(QuantPsyc)
 ```
 ## Importação da base
 
@@ -118,6 +122,35 @@ pnad_maio_variaveis <- pnad_maio %>%
                           "Cedido (Por empregador, Familiar ou outro)")),
        home_office = ifelse(C013 == 1, 1, 0),
        auxilio_emergencial = ifelse(D0051 == 1, "Auxílio", "Sem auxílio"),
+       uf = case_when(
+               UF == 11 ~ "Rondônia",
+               UF == 12 ~ "Acre",
+               UF == 13 ~ "Amazonas",
+               UF == 14 ~ "Roraima",
+               UF == 15 ~ "Pará",
+               UF == 16 ~ "Amapá",
+               UF == 17 ~ "Tocantins",
+               UF == 21 ~ "Maranhão",
+               UF == 22 ~ "Piauí",
+               UF == 23 ~ "Ceará",
+               UF == 24 ~ "Rio Grande do Norte",
+               UF == 25 ~ "Paraíba",
+               UF == 26 ~ "Pernambuco",
+               UF == 27 ~ "Alagoas",
+               UF == 28 ~ "Sergipe",
+               UF == 29 ~ "Bahia",
+               UF == 31 ~ "Minas Gerais",
+               UF == 32 ~ "Espírito Santo",
+               UF == 33 ~ "Rio de Janeiro",
+               UF == 35 ~ "São Paulo",
+               UF == 41 ~ "Paraná",
+               UF == 42 ~ "Santa Catarina",
+               UF == 43 ~ "Rio Grande do Sul",
+               UF == 50 ~ "Mato Grosso do Sul",
+               UF == 51 ~ "Mato Grosso",
+               UF == 52 ~ "Goiás",
+               UF == 53 ~ "Distrito Federal"
+               ) 
 )
 ```
 
@@ -167,29 +200,55 @@ home_absolutos
 ```
 
 
-## d) Construa um modelo de probabilidade linear para uma pessoa em idade ativa trabalhar remotamente e interprete os coeficientes estimados segundo as categorias do item c.   
+## d) Construa um modelo de probabilidade linear para uma pessoa em idade ativa trabalhar remotamente e interprete os coeficientes estimados segundo as categorias do item c.{.tabset}
 
-$$ trabrem = \beta_0 + \beta_1 esc + \beta_2 id + \beta_3 cor + \beta_4 sexo + \beta_5 reg + \mu $$
+$$ trabrem = \beta_0 + \beta_1 esc + \beta_2 id + \beta_3 cor + \beta_4 sexo + \beta_5 uf + \mu $$
 
 onde:  
+trabrem:      Trabalho remoto
 \beta_0:      Intercepto
 \beta_1 esc:  Escolaridade  
 \beta_2 id:   Idade  
 \beta_3 cor:  Cor  
 \beta_4 sexo: Sexo  
-\beta_5 reg:  Região
+\beta_5 uf:   Unidade da Federação
 \mu:          Termo de erro
 
-
+### Variáveis dummy
 
 ```{r}
 #usar pairs.panels() e vif()
 
 dummies <- pnad_maio_variaveis %>% 
-        select(Escolaridade, Idade, Cor, Sexo) %>% 
-        dummy_cols(remove_first_dummy = TRUE)
+        select(home_office, Escolaridade, Idade, Cor, Sexo, uf) %>% 
+        dummy_cols(remove_first_dummy = TRUE) %>% 
+        drop_na()
 
         
 
+```
+### Modelo
+```{r}
+modelo <- glm(home_office ~ Escolaridade + Idade + Cor + Sexo + uf,
+              family = binomial(link = 'logit'),
+              data = dummies)
+
+modelo
+
+```
+### Pontos de alavancagem
+```{r}
+
+plot(modelo, which = 5) # deveria estar sem pontos além da linha pontilhada
+
+summary(stdres(modelo)) #deveria estar entre -3 e +3
+
+```
+### multicolinearidade
+```{r}
+
+
+
+vif(modelo)
 ```
 
