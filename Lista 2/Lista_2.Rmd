@@ -175,7 +175,7 @@ home_porcentagem <- pnad_maio_variaveis %>%
                 ) %>%
         mutate("Home Office (%)" = round((home_office / ocupados_nafastado) * 100), 4) %>%
         ungroup() %>% 
-        select(Sexo, Cor, Escolaridade, "Home Office (%)") %>% 
+        dplyr::select(Sexo, Cor, Escolaridade, "Home Office (%)") %>% 
         drop_na() %>% 
         distinct()
 
@@ -192,7 +192,7 @@ home_absolutos <- pnad_maio_variaveis %>%
         summarise(home_office = survey_total(C013 == 1, na.rm = TRUE)) %>%
         mutate("Home Office" = round(home_office,4)) %>%
         ungroup() %>% 
-        select(Sexo, Cor, Escolaridade, "Home Office") %>% 
+        dplyr::select(Sexo, Cor, Escolaridade, "Home Office") %>% 
         drop_na()
 
 home_absolutos
@@ -220,7 +220,7 @@ trabrem:      Trabalho remoto
 #usar pairs.panels() e vif()
 
 dummies <- pnad_maio_variaveis %>% 
-        select(home_office, Escolaridade, Idade, Cor, Sexo, uf) %>% 
+        dplyr::select(home_office, Escolaridade, Idade, Cor, Sexo, uf) %>% 
         dummy_cols(remove_first_dummy = TRUE) %>% 
         drop_na()
 
@@ -249,6 +249,6 @@ summary(stdres(modelo)) #deveria estar entre -3 e +3
 
 
 
-vif(modelo)
+
 ```
 
